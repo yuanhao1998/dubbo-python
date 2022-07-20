@@ -124,19 +124,27 @@ class DubboClient(object):
         else:
             host = self.__host
 
-        conn, lock = conn_pool.get_conn(host, time_out)  # todo 异常处理，关闭异常socket并重新获取，并校验重试次数
+        conn, lock, index = conn_pool.get_conn(host, time_out)  # todo 异常处理，关闭异常socket并重新获取，并校验重试次数
         with lock:  # 此连接正在使用，锁定socket
-            # 发送请求
-            conn.write(Request({
-                'dubbo_version': self.__dubbo_version,
-                'version': self.__version.replace(':', ''),
-                'path': self.__interface,
-                'method': method,
-                'arguments': args,
-                'group': self.__group
-            }).encode())
+            conn_retry_max = 3  # conn错误连接最大次数
+            while conn_retry_max > 0:
+                try:
+                    # 发送请求
+                    conn.write(Request({
+                        'dubbo_version': self.__dubbo_version,
+                        'version': self.__version.replace(':', ''),
+                        'path': self.__interface,
+                        'method': method,
+                        'arguments': args,
+                        'group': self.__group
+                    }).encode())
 
-            body_buffer = self.deal_recv_data(conn)  # 接收响应数据
+                    body_buffer = self.deal_recv_data(conn)  # 接收响应数据
+                except OSError:
+                    del conn_pool.all_conn()[host][index]
+                    conn, lock, index = conn_pool.get_conn(host, time_out)
+                    conn_retry_max -= 1
+
         return self._parse_response(bytearray(body_buffer))
 
     def deal_recv_data(self, conn) -> list:

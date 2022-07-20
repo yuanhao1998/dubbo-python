@@ -92,9 +92,9 @@ class ConnectionPool(object):
         wait_conn_max = time_out * 2  # 最大连接重试次数：因为0.5秒重试一次，将wait_conn_max粗略设置为time_out的2倍
         while wait_conn_max > 0:
             time.sleep(0.5)
-            for i in self._connection_pool[host]:
+            for index, i in enumerate(self._connection_pool[host]):
                 if not i['lock'].locked():
-                    return i['conn'], i['lock']
+                    return i['conn'], i['lock'], index
             wait_conn_max -= 1
         else:
             raise RPCConnError('连接池已满、且超过最大等待时间')
@@ -108,9 +108,9 @@ class ConnectionPool(object):
         if not self._connection_pool.get(host):
             return self.__new_conn(host)
         else:
-            for i in self._connection_pool[host]:
+            for index, i in enumerate(self._connection_pool[host]):
                 if not i['lock'].locked():
-                    return i['conn'], i['lock']
+                    return i['conn'], i['lock'], index
             else:
                 with conn_pool_lock:
                     if len(self._connection_pool[host]) < CONN_MAX:
@@ -125,12 +125,11 @@ class ConnectionPool(object):
         """
         ip, port = host.split(':')
         conn, lock = Connection(ip, int(port)), threading.Lock()
-        print('new conn')
         if not self._connection_pool.get(host):
             self._connection_pool[host] = [{'conn': conn, 'lock': lock}]
         else:
             self._connection_pool[host].append({'conn': conn, 'lock': lock})
-        return conn, lock
+        return conn, lock, len(self._connection_pool[host])
 
     def all_conn(self) -> dict:
         """
