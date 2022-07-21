@@ -140,10 +140,13 @@ class DubboClient(object):
                     }).encode())
 
                     body_buffer = self.deal_recv_data(conn)  # 接收响应数据
+                    break
                 except OSError:
                     del conn_pool.all_conn()[host][index]
                     conn, lock, index = conn_pool.get_conn(host, time_out)
-                    conn_retry_max -= 1
+                except Exception as e:
+                    raise e
+                conn_retry_max -= 1
 
         return self._parse_response(bytearray(body_buffer))
 
