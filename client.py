@@ -186,4 +186,7 @@ class DubboClient(object):
         """
         res = Response(body)
         res.read_int()
-        return res.read_next()
+        try:
+            return res.read_next()
+        except IndexError as e:
+            print(eval(str(res)).decode())
