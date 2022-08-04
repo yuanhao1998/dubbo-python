@@ -141,7 +141,7 @@ class DubboClient(object):
 
                     body_buffer = self.deal_recv_data(conn)  # 接收响应数据
                     break
-                except OSError:
+                except (OSError, IOError):  # socket错误，重新生成
                     del conn_pool.all_conn()[host][index]
                     conn, lock, index = conn_pool.get_conn(host, time_out)
                 except Exception as e:
