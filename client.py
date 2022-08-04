@@ -124,10 +124,10 @@ class DubboClient(object):
         else:
             host = self.__host
 
-        conn, lock, index = conn_pool.get_conn(host, time_out)  # todo 异常处理，关闭异常socket并重新获取，并校验重试次数
-        with lock:  # 此连接正在使用，锁定socket
-            conn_retry_max = 3  # conn错误连接最大次数
-            while conn_retry_max > 0:
+        conn_retry_max = 3  # conn错误连接最大次数
+        while conn_retry_max > 0:
+            conn, lock, index = conn_pool.get_conn(host, time_out)
+            with lock:  # 此连接正在使用，锁定socket
                 try:
                     # 发送请求
                     conn.write(Request({
@@ -143,7 +143,6 @@ class DubboClient(object):
                     break
                 except (OSError, IOError):  # socket错误，重新生成
                     del conn_pool.all_conn()[host][index]
-                    conn, lock, index = conn_pool.get_conn(host, time_out)
                 except Exception as e:
                     raise e
                 conn_retry_max -= 1
