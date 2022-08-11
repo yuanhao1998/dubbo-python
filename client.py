@@ -3,6 +3,7 @@
 # @Author   : yh
 # @Remark   :
 import random
+import logging
 from struct import unpack
 
 from nacos import NacosClient
@@ -14,6 +15,7 @@ from .conn import conn_pool
 from .constants import DEFAULT_READ_PARAMS
 
 providers_host_dict = {}  # 存放providers对应host的字典
+dubbo_logger = logging.getLogger('dubbo')
 
 
 class NacosRegister(object):
@@ -126,26 +128,28 @@ class DubboClient(object):
 
         conn_retry_max = 3  # conn错误连接最大次数
         while conn_retry_max > 0:
-            conn, lock, index = conn_pool.get_conn(host, time_out)
-            with lock:  # 此连接正在使用，锁定socket
-                try:
-                    # 发送请求
-                    conn.write(Request({
-                        'dubbo_version': self.__dubbo_version,
-                        'version': self.__version.replace(':', ''),
-                        'path': self.__interface,
-                        'method': method,
-                        'arguments': args,
-                        'group': self.__group
-                    }).encode())
+            conn = conn_pool.get_conn(host, time_out)
+            try:
+                # 发送请求
+                conn.write(Request({
+                    'dubbo_version': self.__dubbo_version,
+                    'version': self.__version.replace(':', ''),
+                    'path': self.__interface,
+                    'method': method,
+                    'arguments': args,
+                    'group': self.__group
+                }).encode())
 
-                    body_buffer = self.deal_recv_data(conn)  # 接收响应数据
-                    break
-                except (OSError, IOError):  # socket错误，重新生成
-                    del conn_pool.all_conn()[host][index]
-                except Exception as e:
-                    raise e
-                conn_retry_max -= 1
+                body_buffer = self.deal_recv_data(conn)  # 接收响应数据
+                conn_pool.release_conn(host, conn)
+                break
+            except IOError:  # socket错误，重新生成
+                del conn
+                conn_pool.new_conn(host)
+            except BaseException as e:
+                conn_pool.release_conn(host, conn)
+                raise e
+            conn_retry_max -= 1
 
         return self._parse_response(bytearray(body_buffer))
 
@@ -188,4 +192,4 @@ class DubboClient(object):
         try:
             return res.read_next()
         except IndexError as e:
-            print(eval(str(res)).decode())
+            dubbo_logger.error(eval(str(res)).decode())
