@@ -89,6 +89,3 @@ class ConnectionPool(object):
 
 
 conn_pool = ConnectionPool()  # 全局连接池
-from .heartbeat import heartbeat
-heartbeat_monitor = threading.Thread(target=heartbeat, daemon=True)  # 开启线程进行心跳监测
-heartbeat_monitor.start()
