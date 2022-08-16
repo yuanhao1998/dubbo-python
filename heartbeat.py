@@ -3,6 +3,7 @@
 # @Author   : yh
 # @Remark   : 心跳
 import time
+import logging
 from struct import pack
 
 from mxsoftpy.exception import RPCConnError
@@ -11,6 +12,8 @@ from .conn import conn_pool
 from .constants import CLI_HEARTBEAT_TAIL, CLI_HEARTBEAT_REQ_HEAD, DEFAULT_READ_PARAMS, CONN_MAX
 from .util import get_invoke_id
 
+dubbo_logger = logging.getLogger('dubbo')
+
 
 def heartbeat():
     """
@@ -18,10 +21,11 @@ def heartbeat():
     """
 
     while 1:
-        time.sleep(30)
+        time.sleep(10)
         conn_dict = conn_pool.all_conn()
 
         for host, queue in conn_dict.items():
+            dubbo_logger.info('dubbo_conn开始心跳：host: %s， queue: %s' % (str(host), queue.qsize()))
             max_conn = CONN_MAX
             while not queue.empty() and max_conn > 0:
                 conn = queue.get()
