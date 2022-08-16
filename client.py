@@ -143,7 +143,8 @@ class DubboClient(object):
                 body_buffer = self.deal_recv_data(conn)  # 接收响应数据
                 conn_pool.release_conn(host, conn)
                 break
-            except IOError:  # socket错误，重新生成
+            except IOError as e:  # socket错误，重新生成
+                dubbo_logger.error('socket错误，%s，次数：%s' % (str(e), conn_retry_max))
                 del conn
                 conn_pool.new_conn(host)
             except BaseException as e:
@@ -178,7 +179,8 @@ class DubboClient(object):
         try:
             return parse_response_head(data)  # heartbeat 0 正常响应、1 心跳响应、2 心跳请求
         except RPCConnError as e:
-            print(str(e))
+            dubbo_logger.error('dubbo数据-response_head解析错误')
+            dubbo_logger.error(str(e))
             return 0, unpack('!i', data[12:])[0]
 
     @staticmethod
@@ -192,4 +194,5 @@ class DubboClient(object):
         try:
             return res.read_next()
         except IndexError as e:
+            dubbo_logger.error('dubbo数据-response解析错误')
             dubbo_logger.error(eval(str(res)).decode())
