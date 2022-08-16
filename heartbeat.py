@@ -21,11 +21,11 @@ def heartbeat():
     """
 
     while 1:
-        time.sleep(10)
+        time.sleep(30)
         conn_dict = conn_pool.all_conn()
 
         for host, queue in conn_dict.items():
-            dubbo_logger.info('dubbo_conn开始心跳：host: %s， queue: %s' % (str(host), queue.qsize()))
+            dubbo_logger.debug('dubbo_conn开始心跳：host: %s， queue: %s' % (str(host), queue.qsize()))
             max_conn = CONN_MAX
             while not queue.empty() and max_conn > 0:
                 conn = queue.get()
