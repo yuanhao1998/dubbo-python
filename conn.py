@@ -73,7 +73,6 @@ class ConnectionPool(object):
     def new_conn(self, host: str) -> Connection:
         ip, port = host.split(':')
         conn = Connection(ip, int(port))
-        self._connection_pool[host].put(conn)
         return conn
 
     def get_conn(self, host: str, time_out: int) -> Connection:

@@ -12,7 +12,7 @@ from mxsoftpy.exception import DataError, RPCConnError
 from .codec.decoder import parse_response_head, Response
 from .codec.encoder import Request
 from .conn import conn_pool
-from .constants import DEFAULT_READ_PARAMS
+from .constants import DEFAULT_READ_PARAMS, CONN_MAX, CONN_TIME_OUT
 
 providers_host_dict = {}  # 存放providers对应host的字典
 dubbo_logger = logging.getLogger('dubbo')
@@ -99,7 +99,7 @@ class DubboClient(object):
         self.__host = host
         self.__group = group
 
-    def call(self, method, args=(), time_out=10):
+    def call(self, method, args=(), time_out=CONN_TIME_OUT):
         """
         执行远程调用
         :param method: 远程调用的方法名
@@ -126,7 +126,7 @@ class DubboClient(object):
         else:
             host = self.__host
 
-        conn_retry_max = 3  # conn错误连接最大次数
+        conn_retry_max = CONN_MAX  # conn错误连接最大次数
         while conn_retry_max > 0:
             conn = conn_pool.get_conn(host, time_out)
             try:
@@ -141,16 +141,16 @@ class DubboClient(object):
                 }).encode())
 
                 body_buffer = self.deal_recv_data(conn)  # 接收响应数据
-                conn_pool.release_conn(host, conn)
                 break
             except IOError as e:  # socket错误，重新生成
                 dubbo_logger.error('socket错误，%s，次数：%s' % (str(e), conn_retry_max))
-                del conn
-                conn_pool.new_conn(host)
-            except BaseException as e:
+                conn = conn_pool.new_conn(host)
+            finally:
                 conn_pool.release_conn(host, conn)
-                raise e
-            conn_retry_max -= 1
+                conn_retry_max -= 1
+        else:
+            dubbo_logger.error('socket错误次数达到最大值')
+            raise RPCConnError('RPC连接socket错误')
 
         return self._parse_response(bytearray(body_buffer))
 

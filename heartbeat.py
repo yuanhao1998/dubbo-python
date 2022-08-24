@@ -9,7 +9,7 @@ from struct import pack
 from mxsoftpy.exception import RPCConnError
 from .codec.decoder import parse_response_head
 from .conn import conn_pool
-from .constants import CLI_HEARTBEAT_TAIL, CLI_HEARTBEAT_REQ_HEAD, DEFAULT_READ_PARAMS, CONN_MAX
+from .constants import CLI_HEARTBEAT_TAIL, CLI_HEARTBEAT_REQ_HEAD, DEFAULT_READ_PARAMS, CONN_MAX, CONN_TIME_OUT
 from .util import get_invoke_id
 
 dubbo_logger = logging.getLogger('dubbo')
@@ -28,12 +28,11 @@ def heartbeat():
             dubbo_logger.debug('dubbo_conn开始心跳：host: %s， queue: %s' % (str(host), queue.qsize()))
             max_conn = CONN_MAX
             while not queue.empty() and max_conn > 0:
-                conn = queue.get()
+                conn = queue.get(timeout=CONN_TIME_OUT)
                 try:
                     heartbeat_stream(conn)
                 except IOError:
                     conn = conn_pool.new_conn(host)
-                    heartbeat_stream(conn)
                 finally:
                     conn_pool.release_conn(host, conn)
                     max_conn -= 1
