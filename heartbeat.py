@@ -3,28 +3,39 @@
 # @Author   : yh
 # @Remark   : 心跳
 import time
+import logging
 from struct import pack
 
 from mxsoftpy.exception import RPCConnError
 from .codec.decoder import parse_response_head
 from .conn import conn_pool
-from .constants import CLI_HEARTBEAT_TAIL, CLI_HEARTBEAT_REQ_HEAD, DEFAULT_READ_PARAMS
+from .constants import CLI_HEARTBEAT_TAIL, CLI_HEARTBEAT_REQ_HEAD, DEFAULT_READ_PARAMS, CONN_MAX, CONN_TIME_OUT
 from .util import get_invoke_id
+
+dubbo_logger = logging.getLogger('dubbo')
 
 
 def heartbeat():
     """
     心跳监测
-    # todo 异常处理，关闭异常socket
     """
 
     while 1:
         time.sleep(30)
-        for i in conn_pool.all_conn().values():
-            for j in i:
-                if not j['lock'].locked():  # 对未在使用的socket进行心跳
-                    with j['lock']:
-                        heartbeat_stream(j['conn'])
+        conn_dict = conn_pool.all_conn()
+
+        for host, queue in conn_dict.items():
+            dubbo_logger.debug('dubbo_conn开始心跳：host: %s， queue: %s' % (str(host), queue.qsize()))
+            max_conn = CONN_MAX
+            while not queue.empty() and max_conn > 0:
+                conn = queue.get(timeout=CONN_TIME_OUT)
+                try:
+                    heartbeat_stream(conn)
+                except IOError:
+                    conn = conn_pool.new_conn(host)
+                finally:
+                    conn_pool.release_conn(host, conn)
+                    max_conn -= 1
 
 
 def heartbeat_stream(conn):
