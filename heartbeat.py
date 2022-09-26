@@ -21,7 +21,7 @@ def heartbeat():
     """
 
     while 1:
-        time.sleep(30)
+        time.sleep(15)
         conn_dict = conn_pool.all_conn()
 
         for host, queue in conn_dict.items():

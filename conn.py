@@ -4,7 +4,6 @@
 # @Remark   : 连接池
 
 import socket
-import threading
 import time
 from queue import Queue
 

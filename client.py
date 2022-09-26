@@ -127,7 +127,8 @@ class DubboClient(object):
             host = self.__host
 
         conn_retry_max = CONN_MAX  # conn错误连接最大次数
-        while conn_retry_max > 0:
+        body_buffer = ''
+        while conn_retry_max > -1:
             conn = conn_pool.get_conn(host, time_out)
             try:
                 # 发送请求
@@ -141,7 +142,8 @@ class DubboClient(object):
                 }).encode())
 
                 body_buffer = self.deal_recv_data(conn)  # 接收响应数据
-                break
+                if body_buffer:
+                    break
             except IOError as e:  # socket错误，重新生成
                 dubbo_logger.error('socket错误，%s，次数：%s' % (str(e), conn_retry_max))
                 conn = conn_pool.new_conn(host)
@@ -190,8 +192,8 @@ class DubboClient(object):
         :param body: 响应数据
         """
         res = Response(body)
-        res.read_int()
         try:
+            res.read_int()
             return res.read_next()
         except IndexError as e:
             dubbo_logger.error('dubbo数据-response解析错误')
